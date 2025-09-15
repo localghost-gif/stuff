@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script to clone common security testing repositories
-# Creates a wordlists directory and clones repositories there
+# Script to clone and extract specific security testing wordlists
+# Creates a wordlists directory and downloads the same 3 files as before
 
 set -e  # Exit on any error
 
@@ -9,11 +9,10 @@ set -e  # Exit on any error
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Security Repositories Cloner${NC}"
-echo "================================="
+echo -e "${YELLOW}Security Wordlists Downloader (Git Version)${NC}"
+echo "============================================="
 
 # Create wordlists directory if it doesn't exist
 WORDLIST_DIR="wordlists"
@@ -24,66 +23,42 @@ fi
 
 cd "$WORDLIST_DIR"
 
-# Function to clone repository and handle errors
-clone_repo() {
+# Function to clone repo, extract file, and cleanup
+extract_file_from_repo() {
     local repo_url=$1
-    local repo_name=$2
-    local description=$3
+    local file_path=$2
+    local output_filename=$3
+    local description=$4
+    local temp_dir="temp_repo_$$"
     
-    echo -e "\n${YELLOW}Cloning $description...${NC}"
+    echo -e "\n${YELLOW}Extracting $description...${NC}"
     echo "Repository: $repo_url"
+    echo "File: $file_path"
     
-    # Remove existing directory if it exists
-    if [ -d "$repo_name" ]; then
-        echo -e "${BLUE}Removing existing $repo_name directory...${NC}"
-        rm -rf "$repo_name"
-    fi
-    
-    if git clone --depth 1 "$repo_url" "$repo_name"; then
-        echo -e "${GREEN}✓ Successfully cloned $repo_name${NC}"
+    if git clone --depth 1 --filter=blob:none --sparse "$repo_url" "$temp_dir"; then
+        cd "$temp_dir"
+        git sparse-checkout set "$file_path"
         
-        # Show directory size
-        size=$(du -sh "$repo_name" | cut -f1)
-        echo "  Directory size: $size"
-        
-        # Show file count
-        file_count=$(find "$repo_name" -type f | wc -l)
-        echo "  Files: $file_count"
+        if [ -f "$file_path" ]; then
+            cp "$file_path" "../$output_filename"
+            cd ..
+            rm -rf "$temp_dir"
+            
+            echo -e "${GREEN}✓ Successfully extracted $output_filename${NC}"
+            
+            # Show file size
+            size=$(du -h "$output_filename" | cut -f1)
+            echo "  File size: $size"
+        else
+            cd ..
+            rm -rf "$temp_dir"
+            echo -e "${RED}✗ File not found in repository: $file_path${NC}"
+            return 1
+        fi
     else
-        echo -e "${RED}✗ Failed to clone $repo_name${NC}"
+        rm -rf "$temp_dir" 2>/dev/null || true
+        echo -e "${RED}✗ Failed to clone repository${NC}"
         return 1
-    fi
-}
-
-# Function to create symbolic links for easy access
-create_symlinks() {
-    echo -e "\n${YELLOW}Creating symbolic links for commonly used files...${NC}"
-    
-    # Link rockyou.txt if it exists
-    if [ -f "SecLists/Passwords/Leaked-Databases/rockyou.txt" ]; then
-        ln -sf "SecLists/Passwords/Leaked-Databases/rockyou.txt" "rockyou.txt"
-        echo -e "${GREEN}✓ Linked rockyou.txt${NC}"
-    elif [ -f "SecLists/Passwords/Leaked-Databases/rockyou-75.txt" ]; then
-        ln -sf "SecLists/Passwords/Leaked-Databases/rockyou-75.txt" "rockyou.txt"
-        echo -e "${GREEN}✓ Linked rockyou-75.txt as rockyou.txt${NC}"
-    fi
-    
-    # Link directory wordlist
-    if [ -f "SecLists/Discovery/Web-Content/directory-list-2.3-medium.txt" ]; then
-        ln -sf "SecLists/Discovery/Web-Content/directory-list-2.3-medium.txt" "directory-list-medium.txt"
-        echo -e "${GREEN}✓ Linked directory-list-medium.txt${NC}"
-    fi
-    
-    # Link subdomain wordlist
-    if [ -f "n0kovo_subdomains/n0kovo_subdomains.txt" ]; then
-        ln -sf "n0kovo_subdomains/n0kovo_subdomains.txt" "subdomains.txt"
-        echo -e "${GREEN}✓ Linked subdomains.txt${NC}"
-    fi
-    
-    # Link common passwords
-    if [ -f "SecLists/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" ]; then
-        ln -sf "SecLists/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt" "common-passwords.txt"
-        echo -e "${GREEN}✓ Linked common-passwords.txt${NC}"
     fi
 }
 
@@ -93,53 +68,58 @@ if ! command -v git &> /dev/null; then
     exit 1
 fi
 
-# 1. Clone SecLists - Comprehensive collection of security testing wordlists
-clone_repo \
-    "https://github.com/danielmiessler/SecLists.git" \
-    "SecLists" \
-    "SecLists - Security testing wordlists collection"
-
-# 2. Clone n0kovo's subdomain list
-clone_repo \
+# 1. Extract n0kovo's huge subdomain list
+extract_file_from_repo \
     "https://github.com/n0kovo/n0kovo_subdomains.git" \
-    "n0kovo_subdomains" \
+    "n0kovo_subdomains.txt" \
+    "n0kovo_subdomains.txt" \
     "n0kovo's huge subdomain list"
 
-# 3. Clone PayloadsAllTheThings - Web application security payloads
-clone_repo \
-    "https://github.com/swisskyrepo/PayloadsAllTheThings.git" \
-    "PayloadsAllTheThings" \
-    "PayloadsAllTheThings - Web security payloads"
+# 2. Extract Directory 2.3 Medium list (from SecLists)
+extract_file_from_repo \
+    "https://github.com/danielmiessler/SecLists.git" \
+    "Discovery/Web-Content/directory-list-2.3-medium.txt" \
+    "directory-list-2.3-medium.txt" \
+    "Directory 2.3 Medium wordlist"
 
-# 4. Clone FuzzDB - Attack patterns and primitives
-clone_repo \
-    "https://github.com/fuzzdb-project/fuzzdb.git" \
-    "fuzzdb" \
-    "FuzzDB - Attack patterns and primitives"
+# 3. Extract RockYou wordlist (try multiple possible locations)
+echo -e "\n${YELLOW}Extracting RockYou password list...${NC}"
+rockyou_extracted=false
 
-# Create symbolic links for easy access
-create_symlinks
+# Try different possible locations for rockyou.txt in SecLists
+rockyou_paths=(
+    "Passwords/Leaked-Databases/rockyou.txt"
+    "Passwords/Leaked-Databases/rockyou-75.txt"
+    "Passwords/rockyou.txt"
+)
 
-echo -e "\n${GREEN}All repositories cloned successfully!${NC}"
+for rockyou_path in "${rockyou_paths[@]}"; do
+    echo "Trying path: $rockyou_path"
+    if extract_file_from_repo \
+        "https://github.com/danielmiessler/SecLists.git" \
+        "$rockyou_path" \
+        "rockyou.txt" \
+        "RockYou password list"; then
+        rockyou_extracted=true
+        break
+    fi
+done
+
+# If rockyou not found in SecLists, try alternative repository
+if [ "$rockyou_extracted" = false ]; then
+    echo -e "${YELLOW}Trying alternative repository for rockyou.txt...${NC}"
+    extract_file_from_repo \
+        "https://github.com/brannondorsey/naive-hashcat.git" \
+        "wordlists/rockyou.txt" \
+        "rockyou.txt" \
+        "RockYou password list (alternative source)"
+fi
+
+echo -e "\n${GREEN}All downloads completed!${NC}"
 echo -e "${YELLOW}Files saved in: $(pwd)${NC}"
 echo ""
-
-# Show repository structure
-echo -e "${BLUE}Repository structure:${NC}"
-ls -la
-
-# Show linked files for quick access
-echo -e "\n${BLUE}Quick access files (symlinks):${NC}"
-ls -la *.txt 2>/dev/null || echo "No symlinked .txt files found"
-
-echo -e "\n${YELLOW}Repository contents:${NC}"
-echo -e "${GREEN}SecLists${NC} - Passwords, usernames, URLs, sensitive data patterns, fuzzing payloads"
-echo -e "${GREEN}n0kovo_subdomains${NC} - Huge subdomain enumeration wordlist"
-echo -e "${GREEN}PayloadsAllTheThings${NC} - Web application security testing payloads"
-echo -e "${GREEN}fuzzdb${NC} - Attack patterns, fuzzing payloads, and web fault injection"
-
-echo -e "\n${YELLOW}Update repositories with:${NC}"
-echo "cd wordlists && find . -name '.git' -type d -execdir git pull \\;"
+echo "Downloaded files:"
+ls -lah *.txt 2>/dev/null || echo "No .txt files found"
 
 echo -e "\n${YELLOW}Note: These wordlists are for legitimate security testing purposes only.${NC}"
 echo -e "${YELLOW}Always ensure you have proper authorization before using them.${NC}"
