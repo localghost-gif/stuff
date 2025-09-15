@@ -23,31 +23,37 @@ fi
 
 cd "$WORDLIST_DIR"
 
-# Function to download a file from GitHub raw content using main/master fallback
+# Function to download file from GitHub raw URL
 download_from_github() {
-    local github_repo="$1"
-    local file_path="$2"
-    local output_filename="$3"
-    local description="$4"
-
+    local github_repo=$1
+    local file_path=$2
+    local output_filename=$3
+    local description=$4
+    
+    local raw_url="https://raw.githubusercontent.com/${github_repo}/main/${file_path}"
+    
     echo -e "\n${YELLOW}Downloading $description...${NC}"
-
-    for branch in main master; do
-        raw_url="https://raw.githubusercontent.com/${github_repo}/${branch}/${file_path}"
-        echo "Trying: $raw_url"
-
+    echo "URL: $raw_url"
+    
+    # Try main branch first, then master if main fails
+    if wget -q --show-progress -O "$output_filename" "$raw_url"; then
+        echo -e "${GREEN}✓ Successfully downloaded $output_filename${NC}"
+    else
+        # Try master branch
+        raw_url="https://raw.githubusercontent.com/${github_repo}/master/${file_path}"
+        echo "Trying master branch: $raw_url"
+        
         if wget -q --show-progress -O "$output_filename" "$raw_url"; then
             echo -e "${GREEN}✓ Successfully downloaded $output_filename${NC}"
-            size=$(du -h "$output_filename" | cut -f1)
-            echo "  File size: $size"
-            return 0
         else
-            echo -e "${RED}✗ Failed to download from branch '$branch'${NC}"
+            echo -e "${RED}✗ Failed to download $output_filename${NC}"
+            return 1
         fi
-    done
-
-    echo -e "${RED}✗ All attempts failed for $description${NC}"
-    return 1
+    fi
+    
+    # Show file size
+    size=$(du -h "$output_filename" | cut -f1)
+    echo "  File size: $size"
 }
 
 # Check if wget is installed
@@ -59,8 +65,8 @@ fi
 # 1. Download n0kovo's huge subdomain list
 download_from_github \
     "n0kovo/n0kovo_subdomains" \
-    "n0kovo_subdomains.txt" \
-    "n0kovo_subdomains.txt" \
+    "n0kovo_subdomains_huge.txt" \
+    "n0kovo_subdomains_huge.txt" \
     "n0kovo's huge subdomain list"
 
 # 2. Download Directory 2.3 Medium list (from SecLists)
@@ -111,4 +117,5 @@ ls -lah *.txt 2>/dev/null || echo "No .txt files found"
 # Final note
 echo -e "\n${YELLOW}Note: These wordlists are for legitimate security testing purposes only.${NC}"
 echo -e "${YELLOW}Always ensure you have proper authorization before using them.${NC}"
+
 
