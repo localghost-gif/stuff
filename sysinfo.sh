@@ -1,7 +1,6 @@
 #!/bin/bash
 # Linux System Information Gathering Script
-# For authorized penetration testing purposes only
-# Usage: ./sysinfo.sh
+
 
 if [ ! -d "/tmp" ]; then
     echo "Error: /tmp directory not found. Exiting."
