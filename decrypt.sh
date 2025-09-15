@@ -1,7 +1,5 @@
 #!/bin/bash
-
 # decrypt.sh - Hash identification and decryption script
-# Usage: ./decrypt.sh <hash_file> [wordlist]
 
 set -e
 
