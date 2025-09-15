@@ -5,14 +5,12 @@
 
 set -e
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -29,13 +27,11 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Function to identify hash type based on length and format
 identify_hash() {
     local hash="$1"
     local hash_length=${#hash}
     local first_8="${hash:0:8}"
     
-    # Common hash patterns and their hashcat modes
     case $hash_length in
         32)
             if [[ $hash =~ ^[a-f0-9]{32}$ ]]; then
@@ -68,7 +64,6 @@ identify_hash() {
             fi
             ;;
         *)
-            # Check for specific formats
             if [[ $hash =~ ^\$1\$ ]]; then
                 echo "500" # MD5crypt
             elif [[ $hash =~ ^\$2a\$|^\$2b\$|^\$2x\$|^\$2y\$ ]]; then
@@ -92,7 +87,6 @@ identify_hash() {
     esac
 }
 
-# Function to get hash type description
 get_hash_description() {
     case $1 in
         0) echo "MD5" ;;
@@ -110,7 +104,6 @@ get_hash_description() {
     esac
 }
 
-# Function to attempt decryption with hashcat
 attempt_decrypt() {
     local hash="$1"
     local mode="$2"
@@ -118,15 +111,12 @@ attempt_decrypt() {
     local hash_file="/tmp/hash_to_crack.txt"
     local output_file="/tmp/cracked_output.txt"
     
-    # Create temporary hash file
     echo "$hash" > "$hash_file"
     
     print_info "Attempting to crack hash with mode $mode ($(get_hash_description $mode))"
     
-    # Basic hashcat command
     local hashcat_cmd="hashcat -m $mode -a 0 --potfile-disable --quiet --outfile=$output_file $hash_file $wordlist"
     
-    # Add time limit to prevent hanging
     if timeout 300 $hashcat_cmd 2>/dev/null; then
         if [[ -f "$output_file" && -s "$output_file" ]]; then
             local cracked=$(cat "$output_file")
@@ -136,23 +126,19 @@ attempt_decrypt() {
         fi
     fi
     
-    # Clean up
     rm -f "$hash_file" "$output_file"
     return 1
 }
 
-# Main function
 main() {
     local hash_input="$1"
     local wordlist="${2:-/usr/share/wordlists/rockyou.txt}"
     
-    # Check if hashcat is installed
     if ! command -v hashcat &> /dev/null; then
         print_error "hashcat is not installed. Please install it first."
         exit 1
     fi
     
-    # Check if input is provided
     if [[ -z "$hash_input" ]]; then
         echo "Usage: $0 <hash_or_file> [wordlist]"
         echo "Examples:"
@@ -165,7 +151,6 @@ main() {
         exit 1
     fi
     
-    # Check if wordlist exists
     if [[ ! -f "$wordlist" ]]; then
         print_warning "Wordlist not found: $wordlist"
         print_info "Falling back to built-in attack modes"
@@ -175,7 +160,6 @@ main() {
     print_info "Starting hash identification and decryption process"
     print_info "Wordlist: ${wordlist:-"Built-in attacks"}"
     
-    # Process input
     local hashes=()
     if [[ -f "$hash_input" ]]; then
         print_info "Reading hashes from file: $hash_input"
@@ -186,15 +170,13 @@ main() {
         hashes=("$hash_input")
     fi
     
-    # Process each hash
     local total_hashes=${#hashes[@]}
     local cracked_count=0
     
     for i in "${!hashes[@]}"; do
         local hash="${hashes[$i]}"
         print_info "Processing hash $((i+1))/$total_hashes: ${hash:0:16}..."
-        
-        # Identify hash type
+    
         local hash_mode=$(identify_hash "$hash")
         
         if [[ "$hash_mode" == "unknown" ]]; then
@@ -204,7 +186,6 @@ main() {
         
         print_info "Identified as: $(get_hash_description $hash_mode) (mode: $hash_mode)"
         
-        # Attempt to crack with wordlist if available
         if [[ -n "$wordlist" ]]; then
             if attempt_decrypt "$hash" "$hash_mode" "$wordlist"; then
                 ((cracked_count++))
@@ -212,7 +193,6 @@ main() {
             fi
         fi
         
-        # Try common passwords if no wordlist or wordlist failed
         print_info "Trying common passwords..."
         local common_passwords="/tmp/common_passwords.txt"
         cat > "$common_passwords" << 'EOF'
@@ -238,7 +218,6 @@ EOF
         rm -f "$common_passwords"
     done
     
-    # Summary
     echo
     print_info "=== SUMMARY ==="
     print_info "Total hashes processed: $total_hashes"
