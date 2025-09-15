@@ -25,10 +25,30 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+decrypt_base64() {
+    local input_string="$1"
+    
+    if [[ $input_string =~ ^[a-zA-Z0-9+/]+={0,2}$ ]]; then
+        print_info "Attempting to decode as Base64..."
+        if decoded_string=$(echo "$input_string" | base64 --decode 2>/dev/null); then
+            if [[ -n "$decoded_string" && ! "$decoded_string" =~ [^[:print:][:space:]] ]]; then
+                print_success "Base64 decoded: $decoded_string"
+                return 0
+            else
+                print_warning "Base64 decoding failed or resulted in unreadable binary data."
+                return 1
+            fi
+        else
+            print_warning "Base64 decoding failed."
+            return 1
+        fi
+    fi
+    return 1
+}
+
 identify_hash() {
     local hash="$1"
     local hash_length=${#hash}
-    local first_8="${hash:0:8}"
     
     case $hash_length in
         32)
@@ -136,10 +156,16 @@ main() {
         print_error "hashcat is not installed. Please install it first."
         exit 1
     fi
+
+    if ! command -v base64 &> /dev/null; then
+        print_error "base64 command is not available. Please install it (e.g., coreutils)."
+        exit 1
+    fi
     
     if [[ -z "$hash_input" ]]; then
         echo "Usage: $0 <hash_or_file> [wordlist]"
         echo "Examples:"
+        echo "  $0 'c3VwZXJfc2VjcmV0'"
         echo "  $0 '5d41402abc4b2a76b9719d911017c592'"
         echo "  $0 hashes.txt"
         echo "  $0 hash.txt /path/to/custom_wordlist.txt"
@@ -174,7 +200,13 @@ main() {
     for i in "${!hashes[@]}"; do
         local hash="${hashes[$i]}"
         print_info "Processing hash $((i+1))/$total_hashes: ${hash:0:16}..."
-    
+        
+        # Check for Base64 first
+        if decrypt_base64 "$hash"; then
+            ((cracked_count++))
+            continue
+        fi
+
         local hash_mode=$(identify_hash "$hash")
         
         if [[ "$hash_mode" == "unknown" ]]; then
@@ -182,7 +214,7 @@ main() {
             continue
         fi
         
-        print_info "Identified as: $(get_hash_description $hash_mode) (mode: $hash_mode)"
+        print_info "Identified as: $(get_hash_description "$hash_mode") (mode: $hash_mode)"
         
         if [[ -n "$wordlist" ]]; then
             if attempt_decrypt "$hash" "$hash_mode" "$wordlist"; then
@@ -218,9 +250,9 @@ EOF
     
     echo
     print_info "=== SUMMARY ==="
-    print_info "Total hashes processed: $total_hashes"
-    print_success "Successfully cracked: $cracked_count"
-    print_warning "Failed to crack: $((total_hashes - cracked_count))"
+    print_info "Total strings processed: $total_hashes"
+    print_success "Successfully cracked/decoded: $cracked_count"
+    print_warning "Failed to crack/decode: $((total_hashes - cracked_count))"
 }
 
 # Check if script is being sourced or executed
