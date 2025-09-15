@@ -1,6 +1,7 @@
 #!/bin/bash
 # Linux System Information Gathering Script
 
+set -e
 
 if [ ! -d "/tmp" ]; then
     echo "Error: /tmp directory not found. Exiting."
