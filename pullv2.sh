@@ -23,37 +23,31 @@ fi
 
 cd "$WORDLIST_DIR"
 
-# Function to download file from GitHub raw URL
+# Function to download a file from GitHub raw content using main/master fallback
 download_from_github() {
-    local github_repo=$1
-    local file_path=$2
-    local output_filename=$3
-    local description=$4
-    
-    local raw_url="https://raw.githubusercontent.com/${github_repo}/main/${file_path}"
-    
+    local github_repo="$1"
+    local file_path="$2"
+    local output_filename="$3"
+    local description="$4"
+
     echo -e "\n${YELLOW}Downloading $description...${NC}"
-    echo "URL: $raw_url"
-    
-    # Try main branch first, then master if main fails
-    if wget -O "$output_filename" "$raw_url" 2>/dev/null; then
-        echo -e "${GREEN}✓ Successfully downloaded $output_filename${NC}"
-    else
-        # Try master branch
-        raw_url="https://raw.githubusercontent.com/${github_repo}/master/${file_path}"
-        echo "Trying master branch: $raw_url"
-        
-        if wget -O "$output_filename" "$raw_url"; then
+
+    for branch in main master; do
+        raw_url="https://raw.githubusercontent.com/${github_repo}/${branch}/${file_path}"
+        echo "Trying: $raw_url"
+
+        if wget -q --show-progress -O "$output_filename" "$raw_url"; then
             echo -e "${GREEN}✓ Successfully downloaded $output_filename${NC}"
+            size=$(du -h "$output_filename" | cut -f1)
+            echo "  File size: $size"
+            return 0
         else
-            echo -e "${RED}✗ Failed to download $output_filename${NC}"
-            return 1
+            echo -e "${RED}✗ Failed to download from branch '$branch'${NC}"
         fi
-    fi
-    
-    # Show file size
-    size=$(du -h "$output_filename" | cut -f1)
-    echo "  File size: $size"
+    done
+
+    echo -e "${RED}✗ All attempts failed for $description${NC}"
+    return 1
 }
 
 # Check if wget is installed
@@ -76,11 +70,10 @@ download_from_github \
     "directory-list-2.3-medium.txt" \
     "Directory 2.3 Medium wordlist"
 
-# 3. Download RockYou wordlist - try multiple sources
+# 3. Download RockYou wordlist from multiple sources
 echo -e "\n${YELLOW}Downloading RockYou password list...${NC}"
 rockyou_downloaded=false
 
-# Try different repositories and paths for rockyou.txt
 declare -a rockyou_sources=(
     "brannondorsey/naive-hashcat|master|wordlists/rockyou.txt"
     "danielmiessler/SecLists|master|Passwords/Leaked-Databases/rockyou.txt"
@@ -90,10 +83,10 @@ declare -a rockyou_sources=(
 for source in "${rockyou_sources[@]}"; do
     IFS='|' read -r repo branch path <<< "$source"
     raw_url="https://raw.githubusercontent.com/${repo}/${branch}/${path}"
-    
+
     echo "Trying: $raw_url"
-    
-    if wget -O "rockyou.txt" "$raw_url" 2>/dev/null; then
+
+    if wget -q --show-progress -O "rockyou.txt" "$raw_url"; then
         echo -e "${GREEN}✓ Successfully downloaded rockyou.txt${NC}"
         size=$(du -h "rockyou.txt" | cut -f1)
         echo "  File size: $size"
@@ -108,11 +101,14 @@ if [ "$rockyou_downloaded" = false ]; then
     echo -e "${RED}✗ Could not download rockyou.txt from any source${NC}"
 fi
 
+# Summary
 echo -e "\n${GREEN}Download process completed!${NC}"
 echo -e "${YELLOW}Files saved in: $(pwd)${NC}"
 echo ""
 echo "Downloaded files:"
 ls -lah *.txt 2>/dev/null || echo "No .txt files found"
 
+# Final note
 echo -e "\n${YELLOW}Note: These wordlists are for legitimate security testing purposes only.${NC}"
 echo -e "${YELLOW}Always ensure you have proper authorization before using them.${NC}"
+
