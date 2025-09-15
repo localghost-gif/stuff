@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script to clone and extract specific security testing wordlists
-# Creates a wordlists directory and downloads the same 3 files as before
+# Script to download specific security testing wordlists using GitHub's raw file URLs
+# Creates a wordlists directory and downloads only the 3 specific files
 
 set -e  # Exit on any error
 
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Security Wordlists Downloader (Git Version)${NC}"
+echo -e "${YELLOW}Security Wordlists Downloader (Git Raw URLs)${NC}"
 echo "============================================="
 
 # Create wordlists directory if it doesn't exist
@@ -23,99 +23,92 @@ fi
 
 cd "$WORDLIST_DIR"
 
-# Function to clone repo, extract file, and cleanup
-extract_file_from_repo() {
-    local repo_url=$1
+# Function to download file from GitHub raw URL
+download_from_github() {
+    local github_repo=$1
     local file_path=$2
     local output_filename=$3
     local description=$4
-    local temp_dir="temp_repo_$$"
     
-    echo -e "\n${YELLOW}Extracting $description...${NC}"
-    echo "Repository: $repo_url"
-    echo "File: $file_path"
+    local raw_url="https://raw.githubusercontent.com/${github_repo}/main/${file_path}"
     
-    if git clone --depth 1 --filter=blob:none --sparse "$repo_url" "$temp_dir"; then
-        cd "$temp_dir"
-        git sparse-checkout set "$file_path"
+    echo -e "\n${YELLOW}Downloading $description...${NC}"
+    echo "URL: $raw_url"
+    
+    # Try main branch first, then master if main fails
+    if wget -O "$output_filename" "$raw_url" 2>/dev/null; then
+        echo -e "${GREEN}✓ Successfully downloaded $output_filename${NC}"
+    else
+        # Try master branch
+        raw_url="https://raw.githubusercontent.com/${github_repo}/master/${file_path}"
+        echo "Trying master branch: $raw_url"
         
-        if [ -f "$file_path" ]; then
-            cp "$file_path" "../$output_filename"
-            cd ..
-            rm -rf "$temp_dir"
-            
-            echo -e "${GREEN}✓ Successfully extracted $output_filename${NC}"
-            
-            # Show file size
-            size=$(du -h "$output_filename" | cut -f1)
-            echo "  File size: $size"
+        if wget -O "$output_filename" "$raw_url"; then
+            echo -e "${GREEN}✓ Successfully downloaded $output_filename${NC}"
         else
-            cd ..
-            rm -rf "$temp_dir"
-            echo -e "${RED}✗ File not found in repository: $file_path${NC}"
+            echo -e "${RED}✗ Failed to download $output_filename${NC}"
             return 1
         fi
-    else
-        rm -rf "$temp_dir" 2>/dev/null || true
-        echo -e "${RED}✗ Failed to clone repository${NC}"
-        return 1
     fi
+    
+    # Show file size
+    size=$(du -h "$output_filename" | cut -f1)
+    echo "  File size: $size"
 }
 
-# Check if git is installed
-if ! command -v git &> /dev/null; then
-    echo -e "${RED}Error: git is not installed. Please install git first.${NC}"
+# Check if wget is installed
+if ! command -v wget &> /dev/null; then
+    echo -e "${RED}Error: wget is not installed. Please install wget first.${NC}"
     exit 1
 fi
 
-# 1. Extract n0kovo's huge subdomain list
-extract_file_from_repo \
-    "https://github.com/n0kovo/n0kovo_subdomains.git" \
+# 1. Download n0kovo's huge subdomain list
+download_from_github \
+    "n0kovo/n0kovo_subdomains" \
     "n0kovo_subdomains.txt" \
     "n0kovo_subdomains.txt" \
     "n0kovo's huge subdomain list"
 
-# 2. Extract Directory 2.3 Medium list (from SecLists)
-extract_file_from_repo \
-    "https://github.com/danielmiessler/SecLists.git" \
+# 2. Download Directory 2.3 Medium list (from SecLists)
+download_from_github \
+    "danielmiessler/SecLists" \
     "Discovery/Web-Content/directory-list-2.3-medium.txt" \
     "directory-list-2.3-medium.txt" \
     "Directory 2.3 Medium wordlist"
 
-# 3. Extract RockYou wordlist (try multiple possible locations)
-echo -e "\n${YELLOW}Extracting RockYou password list...${NC}"
-rockyou_extracted=false
+# 3. Download RockYou wordlist - try multiple sources
+echo -e "\n${YELLOW}Downloading RockYou password list...${NC}"
+rockyou_downloaded=false
 
-# Try different possible locations for rockyou.txt in SecLists
-rockyou_paths=(
-    "Passwords/Leaked-Databases/rockyou.txt"
-    "Passwords/Leaked-Databases/rockyou-75.txt"
-    "Passwords/rockyou.txt"
+# Try different repositories and paths for rockyou.txt
+declare -a rockyou_sources=(
+    "brannondorsey/naive-hashcat|master|wordlists/rockyou.txt"
+    "danielmiessler/SecLists|master|Passwords/Leaked-Databases/rockyou.txt"
+    "danielmiessler/SecLists|master|Passwords/Leaked-Databases/rockyou-75.txt"
 )
 
-for rockyou_path in "${rockyou_paths[@]}"; do
-    echo "Trying path: $rockyou_path"
-    if extract_file_from_repo \
-        "https://github.com/danielmiessler/SecLists.git" \
-        "$rockyou_path" \
-        "rockyou.txt" \
-        "RockYou password list"; then
-        rockyou_extracted=true
+for source in "${rockyou_sources[@]}"; do
+    IFS='|' read -r repo branch path <<< "$source"
+    raw_url="https://raw.githubusercontent.com/${repo}/${branch}/${path}"
+    
+    echo "Trying: $raw_url"
+    
+    if wget -O "rockyou.txt" "$raw_url" 2>/dev/null; then
+        echo -e "${GREEN}✓ Successfully downloaded rockyou.txt${NC}"
+        size=$(du -h "rockyou.txt" | cut -f1)
+        echo "  File size: $size"
+        rockyou_downloaded=true
         break
+    else
+        echo -e "${RED}✗ Failed from this source${NC}"
     fi
 done
 
-# If rockyou not found in SecLists, try alternative repository
-if [ "$rockyou_extracted" = false ]; then
-    echo -e "${YELLOW}Trying alternative repository for rockyou.txt...${NC}"
-    extract_file_from_repo \
-        "https://github.com/brannondorsey/naive-hashcat.git" \
-        "wordlists/rockyou.txt" \
-        "rockyou.txt" \
-        "RockYou password list (alternative source)"
+if [ "$rockyou_downloaded" = false ]; then
+    echo -e "${RED}✗ Could not download rockyou.txt from any source${NC}"
 fi
 
-echo -e "\n${GREEN}All downloads completed!${NC}"
+echo -e "\n${GREEN}Download process completed!${NC}"
 echo -e "${YELLOW}Files saved in: $(pwd)${NC}"
 echo ""
 echo "Downloaded files:"
