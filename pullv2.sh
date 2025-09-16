@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pull v2.5 - Pulling useful wordlists in one go
+# Pull v2.5 by l0calgh0st - Pulling useful wordlists in one go
 
 set -e 
 
