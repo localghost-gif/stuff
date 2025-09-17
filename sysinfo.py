@@ -16,9 +16,8 @@ import random
 from datetime import datetime
 from typing import List, Tuple
 
-# Config
 TMP_BASE = "/tmp"
-TIMEOUT = 60  # seconds per command (adjust if you expect long-running commands)
+TIMEOUT = 60 
 OUTPUT_DIR = os.path.join(
     TMP_BASE,
     f"sysinfo_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{random.randint(1000,9999)}",
@@ -45,16 +44,10 @@ def write_header(filename: str, title: str, cmd: str) -> None:
 
 
 def run_cmd_save(cmd: str, outpath: str, description: str, timeout: int = TIMEOUT) -> None:
-    """
-    Run command string through shell, append output (stdout+stderr) to outpath file.
-    Non-fatal on failure; writes error info to file.
-    """
-    # Ensure out directory exists
     os.makedirs(os.path.dirname(outpath), exist_ok=True)
     write_header(outpath, description, cmd)
 
     try:
-        # Use shell to preserve compound commands like `cat /etc/shadow` or `find ... -exec cat {} \;`
         completed = subprocess.run(
             cmd,
             shell=True,
@@ -84,7 +77,6 @@ def generate_summary(output_dir: str) -> None:
     try:
         pretty_os = ""
         try:
-            # Try reading PRETTY_NAME from /etc/os-release
             with open("/etc/os-release", "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     if line.startswith("PRETTY_NAME="):
@@ -130,8 +122,6 @@ def main() -> None:
     print(f"Started: {datetime.now().isoformat()}")
     print()
 
-    # commands grouped by target file (mimicking your original script)
-    # Each entry: (command_string, out_filename, description)
     cmds: List[Tuple[str, str, str]] = [
         ("uname -a", "01_system_info.txt", "Kernel and system information"),
         ("cat /etc/os-release", "01_system_info.txt", "OS release information"),
@@ -194,13 +184,11 @@ def main() -> None:
         ("find /home -name '.*history' -exec cat {} \\; 2>/dev/null", "11_history.txt", "All history files"),
     ]
 
-    # Run everything sequentially
     for cmd, fname, desc in cmds:
         outpath = os.path.join(OUTPUT_DIR, fname)
         print(f"Gathering: {desc}")
         run_cmd_save(cmd, outpath, desc)
 
-    # Write summary file
     generate_summary(OUTPUT_DIR)
 
     print()
@@ -218,3 +206,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nInterrupted by user.")
         sys.exit(1)
+
