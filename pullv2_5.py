@@ -13,14 +13,13 @@ import shutil
 from typing import Optional, Tuple
 from time import time
 
-# ANSI colors
 RED = '\033[0;31m'
 GREEN = '\033[0;32m'
 YELLOW = '\033[1;33m'
 NC = '\033[0m'
 
 WORDLIST_DIR = "wordlists"
-CHUNK_SIZE = 32 * 1024  # 32 KB
+CHUNK_SIZE = 32 * 1024
 
 
 def human_readable_size(bytesize: int) -> str:
@@ -43,7 +42,6 @@ def download_url(url: str, output_path: str, show_progress: bool = True, timeout
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "python-wordlist-downloader/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            # handle HTTP errors implicitly (they will raise)
             total = resp.getheader("Content-Length")
             total = int(total) if total and total.isdigit() else None
 
@@ -64,10 +62,9 @@ def download_url(url: str, output_path: str, show_progress: bool = True, timeout
                             print(f"\rDownloading {os.path.basename(output_path)} — {human_readable_size(downloaded)} / {human_readable_size(total)} ({percent:5.1f}%)", end="")
                         else:
                             print(f"\rDownloading {os.path.basename(output_path)} — {human_readable_size(downloaded)}", end="")
-                # final newline after progress
+                            
                 if show_progress:
                     print()
-            # move temp file into place
             shutil.move(tmp_path, output_path)
             elapsed = time() - start
             if total:
@@ -82,7 +79,7 @@ def download_url(url: str, output_path: str, show_progress: bool = True, timeout
         print(f"\n{RED}URL Error for {url}: {e.reason}{NC}")
     except Exception as e:
         print(f"\n{RED}Unexpected error while downloading {url}: {e}{NC}")
-    # remove partial file if exists
+
     try:
         part = output_path + ".part"
         if os.path.exists(part):
@@ -98,7 +95,7 @@ def download_from_github(github_repo: str, file_path: str, output_filename: str,
         raw_url = f"https://raw.githubusercontent.com/{github_repo}/{branch}/{file_path}"
         print(f"\n{YELLOW}Downloading {description}...{NC}")
         print(f"URL: {raw_url}")
-        # attempt download
+
         outpath = os.path.join(WORDLIST_DIR, output_filename)
         if download_url(raw_url, outpath):
             print(f"{GREEN}✓ Successfully downloaded {output_filename}{NC}")
@@ -126,11 +123,9 @@ def main() -> None:
     ]
 
     for repo, path, outname, desc in tasks:
-        # download_from_github builds its own branch-fallback raw URLs
-        # but its signature in the Bash included github_repo, file_path, output_filename, description
+
         download_from_github(repo, path, outname, desc)
 
-    # RockYou special handling: multiple possible sources
     print(f"\n{YELLOW}Downloading RockYou password list...{NC}")
     rockyou_downloaded = False
 
