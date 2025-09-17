@@ -40,10 +40,6 @@ def safe_mkdir(path: str) -> None:
 
 
 def download_url(url: str, output_path: str, show_progress: bool = True, timeout: int = 30) -> bool:
-    """
-    Download a URL to output_path. Returns True on success, False on failure.
-    Streams to file and optionally prints progress.
-    """
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "python-wordlist-downloader/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -97,10 +93,6 @@ def download_url(url: str, output_path: str, show_progress: bool = True, timeout
 
 
 def download_from_github(github_repo: str, file_path: str, output_filename: str, description: str) -> bool:
-    """
-    Try to download from main branch, fallback to master.
-    Returns True on success, False otherwise.
-    """
     branches = ("main", "master")
     for branch in branches:
         raw_url = f"https://raw.githubusercontent.com/{github_repo}/{branch}/{file_path}"
@@ -127,12 +119,7 @@ def main() -> None:
     print("=============================================")
 
     safe_mkdir(WORDLIST_DIR)
-
-    # ensure we can make outbound http(s) requests (no wget check needed)
-    # but a quick hint if DNS/networking is likely broken could be to ping github's RAW host using a tiny request,
-    # we skip that to avoid false negatives.
-
-    # list of downloads (repo, path, outname, description)
+    
     tasks = [
         ("n0kovo/n0kovo_subdomains", "n0kovo_subdomains_huge.txt", "n0kovo_subdomains_huge.txt", "n0kovo's huge subdomain list"),
         ("danielmiessler/SecLists", "Discovery/Web-Content/combined_directories.txt", "combined_directories.txt", "Combined Directories list"),
