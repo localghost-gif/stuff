@@ -1,4 +1,4 @@
-{.push stackTrace:off, profiler:off.} ## Ghostify, removing PANIC-messages.
+{.push stackTrace:off, profiler:off.}
 
 import std/[asyncdispatch, asyncnet, strutils, parseopt, os, net]
 
