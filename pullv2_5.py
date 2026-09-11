@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pull v2.5 by l0calgh0st - Python port
+Pull v2.5 by Jørn E. Jenssen - Python port
 Downloads a set of security wordlists (raw GitHub URLs).
 """
 
