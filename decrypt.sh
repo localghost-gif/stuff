@@ -1,5 +1,5 @@
 #!/bin/bash
-# decrypt.sh by l0calgh0st - Hash identification and decryption script
+# decrypt.sh by Jørn E. Jenssen - Hash identification and decryption script
 
 set -e
 
