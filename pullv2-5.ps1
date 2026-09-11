@@ -1,5 +1,5 @@
 ﻿<#
-  Pull v2.5 by l0calgh0st - Pulling useful wordlists in one go (PowerShell port)
+  Pull v2.5 by Jørn E. Jenssen - Pulling useful wordlists in one go (PowerShell port)
 #>
 
 $ErrorActionPreference = "Stop"
