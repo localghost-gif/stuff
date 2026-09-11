@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Python port of:
-Linux System Information Gathering Script by l0calgh0st
+Linux System Information Gathering Script by Jørn E. Jenssen
 
 Saves outputs to /tmp/sysinfo_<YYYYMMDD_HHMMSS>_<RAND>/
 """
