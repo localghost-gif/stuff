@@ -1,5 +1,5 @@
 #!/bin/bash
-# Linux System Information Gathering Script by l0calgh0st
+# Linux System Information Gathering Script by Jørn E. Jenssen
 
 set -e
 
